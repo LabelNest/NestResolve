@@ -1,4 +1,5 @@
 //import './testSupabase';
+console.log(import.meta.env.VITE_SUPABASE_URL);
 //importing auth part
 import { useEffect, useState } from 'react';
 import { supabase } from './supabaseClient';
