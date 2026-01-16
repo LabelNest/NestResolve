@@ -1,11 +1,16 @@
 //import './testSupabase';
 
+// importing auth part
 import { useEffect, useState } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-
 import { supabase } from "./supabaseClient";
 import Auth from "./Auth";
+
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { IssueProvider } from "@/context/IssueContext";
 
 import Index from "./pages/Index";
 import CreateIssue from "./pages/CreateIssue";
@@ -13,11 +18,6 @@ import IssueDetail from "./pages/IssueDetail";
 import MyIssues from "./pages/MyIssues";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
-
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { Toaster } from "@/components/ui/toaster";
-import { Sonner } from "@/components/ui/sonner";
-import { IssueProvider } from "./context/IssueContext";
 
 const queryClient = new QueryClient();
 
@@ -28,7 +28,7 @@ const App = () => {
   const [approved, setApproved] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const checkSessionAndApproval = async () => {
+    const checkAuthAndApproval = async () => {
       const { data } = await supabase.auth.getSession();
       const session = data.session;
 
@@ -47,7 +47,7 @@ const App = () => {
         .single();
 
       if (error || !tenant) {
-        console.error("Approval check failed:", error);
+        console.error("Approval check failed", error);
         setApproved(false);
       } else {
         setApproved(tenant.status === "approved");
@@ -56,7 +56,7 @@ const App = () => {
       setLoading(false);
     };
 
-    checkSessionAndApproval();
+    checkAuthAndApproval();
 
     // Listen to login / logout
     const { data: listener } = supabase.auth.onAuthStateChange(
@@ -64,7 +64,7 @@ const App = () => {
         setSession(session);
         setApproved(null);
         setLoading(true);
-        checkSessionAndApproval();
+        checkAuthAndApproval();
       }
     );
 
@@ -72,13 +72,9 @@ const App = () => {
   }, []);
 
   // ---------- Guards ----------
-  if (loading) {
-    return <div style={{ padding: 40 }}>Loading...</div>;
-  }
+  if (loading) return <div>Loading...</div>;
 
-  if (!session) {
-    return <Auth />;
-  }
+  if (!session) return <Auth />;
 
   if (approved === false) {
     return (
@@ -89,7 +85,7 @@ const App = () => {
     );
   }
 
-  // ---------- Main App ----------
+  // ---------- Existing App JSX ----------
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
