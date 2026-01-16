@@ -38,10 +38,8 @@ const App = () => (
       </IssueProvider>
     </TooltipProvider>
   </QueryClientProvider>
-);
 
-//auth part function
-export default function App() {
+  //auth code start
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -61,19 +59,19 @@ export default function App() {
   }, []);
 
   if (loading) return <div>Loading...</div>;
+  if (!session) return <Auth />; // show Auth if not logged in
 
-  // If not logged in, show Auth page
-  if (!session) return <Auth />;
-
-  // If logged in, show your existing app content
+  // Your existing JSX goes here
   return (
     <div>
-      {/* Your existing App.tsx code goes here */}
       <h1>Welcome to the App!</h1>
-      {/* Add more of your components */}
+      {/* Add all your existing components/UI here */}
     </div>
   );
-}
+};
+//auth code end
+);
+
 
 
 export default App;
