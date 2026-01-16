@@ -1,11 +1,8 @@
-import { supabase } from './supabaseClient'
+import { supabase } from './supabaseClient';
 
-async function testSupabase() {
-  const { data, error } = await supabase.auth.getSession()
-
-  console.log('Supabase connected')
-  console.log('Session data:', data)
-  console.log('Error:', error)
+async function test() {
+  const { data, error } = await supabase.from('users').select('*');
+  console.log(data, error);
 }
 
-testSupabase()
+test();
