@@ -14,7 +14,7 @@ const Auth = () => {
 
     if (error) return alert(error.message);
 
-    await supabase.from("tenants").insert({
+    await supabase.from("nr_demo").insert({
       id: data.user?.id,
       email,
       name,
@@ -34,7 +34,7 @@ const Auth = () => {
     if (error) return alert(error.message);
 
     const { data: tenant } = await supabase
-      .from("tenants")
+      .from("nr_demo")
       .select("status")
       .eq("id", data.user.id)
       .single();
