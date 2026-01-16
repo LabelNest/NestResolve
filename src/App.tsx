@@ -1,4 +1,8 @@
-console.log('🚀 main.tsx is running');
+if (import.meta.env.DEV) {
+  import('./supabaseClient/testSupabase')
+    .then(() => console.log('✅ testSupabase imported'))
+    .catch(err => console.error('❌ import failed', err));
+}
 
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
