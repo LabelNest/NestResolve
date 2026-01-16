@@ -1,7 +1,5 @@
 if (import.meta.env.DEV) {
-  import('./supabaseClient/testSupabase')
-    .then(() => console.log('✅ testSupabase imported'))
-    .catch(err => console.error('❌ import failed', err));
+  import('./testSupabase');
 }
 
 import { Toaster } from "@/components/ui/toaster";
