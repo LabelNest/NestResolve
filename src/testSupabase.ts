@@ -1,3 +1,5 @@
+console.log('🔥 testSupabase file loaded');
+
 import { supabase } from './supabaseClient';
 
 async function checkSupabaseConnection() {
