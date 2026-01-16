@@ -1,4 +1,7 @@
-import './NestResolve/testSupabase';
+// Only import testSupabase in development
+if (import.meta.env.DEV) {
+  import('./supabaseClient/testSupabase');
+}
 
 
 import { createRoot } from "react-dom/client";
