@@ -1,8 +1,4 @@
-// Only import testSupabase in development
-if (import.meta.env.DEV) {
-  import('./supabaseClient/testSupabase');
-}
-
+console.log('🚀 main.tsx is running');
 
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
