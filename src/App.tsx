@@ -1,4 +1,4 @@
-//import './testSupabase';
+import './testSupabase';
 //importing auth part
 import { useEffect, useState } from 'react';
 import { supabase } from './supabaseClient';
@@ -40,36 +40,7 @@ const App = () => (
   </QueryClientProvider>
 
   //auth code start
-  const [session, setSession] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Check if user is already logged in
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setLoading(false);
-    });
-
-    // Listen to login/logout events
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => listener.subscription.unsubscribe();
-  }, []);
-
-  if (loading) return <div>Loading...</div>;
-  if (!session) return <Auth />; // show Auth if not logged in
-
-  // Your existing JSX goes here
-  return (
-    <div>
-      <h1>Welcome to the App!</h1>
-      {/* Add all your existing components/UI here */}
-    </div>
-  );
-};
-//auth code end
 );
 
 
