@@ -1,4 +1,8 @@
 //import './testSupabase';
+//importing auth part
+import { useEffect, useState } from 'react';
+import { supabase } from './supabaseClient';
+import Auth from './Auth';
 
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -35,5 +39,41 @@ const App = () => (
     </TooltipProvider>
   </QueryClientProvider>
 );
+
+//auth part function
+export default function App() {
+  const [session, setSession] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Check if user is already logged in
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setLoading(false);
+    });
+
+    // Listen to login/logout events
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  if (loading) return <div>Loading...</div>;
+
+  // If not logged in, show Auth page
+  if (!session) return <Auth />;
+
+  // If logged in, show your existing app content
+  return (
+    <div>
+      {/* Your existing App.tsx code goes here */}
+      <h1>Welcome to the App!</h1>
+      {/* Add more of your components */}
+    </div>
+  );
+}
+
 
 export default App;
