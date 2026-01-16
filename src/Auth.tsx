@@ -1,45 +1,62 @@
-import { useState } from 'react';
-import { supabase } from './supabaseClient';
+import { useState } from "react";
+import { supabase } from "./supabaseClient";
 
-export default function Auth() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+const Auth = () => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
 
   const signUp = async () => {
-    const { error } = await supabase.auth.signUp({ email, password });
-    if (error) alert(error.message);
-    else alert('Signup successful! Please login.');
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
+    if (error) return alert(error.message);
+
+    await supabase.from("tenants").insert({
+      id: data.user?.id,
+      email,
+      name,
+      status: "pending",
+      role: "user",
+    });
+
+    alert("Signup successful. Wait for admin approval.");
   };
 
   const signIn = async () => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) alert(error.message);
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) return alert(error.message);
+
+    const { data: tenant } = await supabase
+      .from("tenants")
+      .select("status")
+      .eq("id", data.user.id)
+      .single();
+
+    if (tenant.status !== "approved") {
+      await supabase.auth.signOut();
+      alert("Account not approved yet.");
+    }
   };
 
   return (
-    <div style={{ maxWidth: 300, margin: '100px auto', textAlign: 'center' }}>
+    <div style={{ maxWidth: 300, margin: "100px auto" }}>
       <h2>Login / Signup</h2>
 
-      <input
-        type="email"
-        placeholder="Email"
-        value={email}
-        onChange={e => setEmail(e.target.value)}
-        style={{ width: '100%', padding: '8px', margin: '8px 0' }}
-      />
+      <input placeholder="Name" onChange={e => setName(e.target.value)} />
+      <input placeholder="Email" onChange={e => setEmail(e.target.value)} />
+      <input type="password" placeholder="Password" onChange={e => setPassword(e.target.value)} />
 
-      <input
-        type="password"
-        placeholder="Password"
-        value={password}
-        onChange={e => setPassword(e.target.value)}
-        style={{ width: '100%', padding: '8px', margin: '8px 0' }}
-      />
-
-      <div style={{ marginTop: 10 }}>
-        <button onClick={signIn} style={{ padding: '8px 16px' }}>Login</button>
-        <button onClick={signUp} style={{ padding: '8px 16px', marginLeft: 10 }}>Signup</button>
-      </div>
+      <button onClick={signIn}>Login</button>
+      <button onClick={signUp}>Signup</button>
     </div>
   );
-}
+};
+
+export default Auth;
