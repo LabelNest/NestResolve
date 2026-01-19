@@ -1,131 +1,72 @@
 import { useState } from "react";
-import { supabase } from "./supabaseClient";
+import { supabase } from "./supabaseClient"; // make sure this is your Supabase client
 
-export default function Auth() {
+export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<"login" | "signup">("signup");
+  const [error, setError] = useState("");
 
-  // ---------------- SIGN UP ----------------
-  const handleSignup = async () => {
-    setLoading(true);
-    setError(null);
-
-    // 1. Supabase signup (email confirmation enabled)
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
-
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-      return;
-    }
-
-    // 2. Insert approval request
-    if (data.user) {
-      const { error: dbError } = await supabase.from("nr_demo").insert({
-        id: data.user.id,
-        email: email,
-        status: "pending",
-      });
-
-      if (dbError) {
-        console.error(dbError);
-        setError("Signup succeeded but approval entry failed");
-      } else {
-        alert("Registration submitted! Please check your email to confirm.");
-      }
-    }
-
-    setLoading(false);
-  };
-
-  // ---------------- LOGIN ----------------
+  // Async login function
   const handleLogin = async () => {
     setLoading(true);
-    setError(null);
+    setError("");
 
-    // 1. Check admin approval
-    const { data: approval, error: approvalError } = await supabase
-      .from("nr_demo")
-      .select("status")
-      .eq("email", email)
-      .single();
+    try {
+      // 1️⃣ Supabase auth sign in
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (approvalError || !approval) {
-      setError("Account not approved yet.");
+      if (authError) throw authError;
+
+      // 2️⃣ Check approval status from your table
+      const { data: approval, error: approvalError } = await supabase
+        .from("nr_demo")
+        .select("status")
+        .eq("email", email)
+        .maybeSingle();
+
+      if (approvalError) throw approvalError;
+
+      if (!approval || approval.status.toLowerCase() !== "approved") {
+        setError("Account not approved yet.");
+        return;
+      }
+
+      // ✅ Success: user is logged in and approved
+      console.log("Login successful!", authData);
+      alert("Login successful!");
+
+    } catch (err) {
+      console.error("Login error:", err);
+      setError(err.message || "Something went wrong.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    if (approval.status !== "approved") {
-      setError("Account pending admin approval.");
-      setLoading(false);
-      return;
-    }
-
-    // 2. Login
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      setError(error.message);
-    }
-
-    setLoading(false);
   };
 
   return (
-    <div style={{ padding: 40, maxWidth: 400 }}>
-      <h2>{mode === "signup" ? "Sign Up" : "Login"}</h2>
-
+    <div style={{ padding: "2rem" }}>
+      <h2>Login</h2>
       <input
+        type="email"
         placeholder="Email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        style={{ width: "100%", marginBottom: 10 }}
+        style={{ display: "block", marginBottom: "1rem" }}
       />
-
       <input
         type="password"
         placeholder="Password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
-        style={{ width: "100%", marginBottom: 10 }}
+        style={{ display: "block", marginBottom: "1rem" }}
       />
-
-      <button
-        onClick={mode === "signup" ? handleSignup : handleLogin}
-        disabled={loading}
-        style={{ width: "100%" }}
-      >
-        {loading
-          ? "Please wait..."
-          : mode === "signup"
-          ? "Sign Up"
-          : "Login"}
+      <button onClick={handleLogin} disabled={loading}>
+        {loading ? "Logging in..." : "Login"}
       </button>
-
-      <p
-        style={{ cursor: "pointer", color: "blue", marginTop: 15 }}
-        onClick={() =>
-          setMode(mode === "signup" ? "login" : "signup")
-        }
-      >
-        {mode === "signup"
-          ? "Already registered? Login"
-          : "New user? Sign up"}
-      </p>
-
       {error && <p style={{ color: "red" }}>{error}</p>}
     </div>
   );
