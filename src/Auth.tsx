@@ -1,43 +1,75 @@
 import { useState } from "react";
-import { supabase } from "./supabaseClient"; // make sure this points to your Supabase client
+import { supabase } from "./supabaseClient";
 
 export default function Auth() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState(""); // optional if you’re only checking approval
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
 
   const handleLogin = async () => {
     setLoading(true);
     setError("");
-
     try {
-      // 1️⃣ Check approval status in nr_demo table
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (authError) throw authError;
+
+      // Check approval status
       const { data: approval, error: approvalError } = await supabase
         .from("nr_demo")
         .select("status")
         .eq("email", email)
         .maybeSingle();
 
-      console.log("Approval:", approval);
-      console.log("Approval error:", approvalError);
-
-      if (approvalError || !approval) {
+      if (approvalError) throw approvalError;
+      if (!approval || approval.status.toLowerCase() !== "approved") {
         setError("Account not approved yet.");
         return;
       }
 
-      if (approval.status.toLowerCase() !== "approved") {
-        setError("Account not approved yet.");
-        return;
-      }
-
-      // 2️⃣ Optional: continue login flow here
-      console.log("User approved. Login successful!");
       alert("Login successful!");
 
     } catch (err) {
-      console.error("Login error:", err);
+      setError((err as Error).message || "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignUp = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+      if (error) throw error;
+      alert("Sign up successful! Please check your email to confirm.");
+      setMode("login");
+    } catch (err) {
+      setError((err as Error).message || "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + "/reset-password",
+      });
+      if (error) throw error;
+      alert("Password reset email sent!");
+      setMode("login");
+    } catch (err) {
       setError((err as Error).message || "Something went wrong.");
     } finally {
       setLoading(false);
@@ -45,8 +77,8 @@ export default function Auth() {
   };
 
   return (
-    <div style={{ padding: "2rem", maxWidth: "400px", margin: "0 auto" }}>
-      <h2>Login</h2>
+    <div style={{ maxWidth: 400, margin: "2rem auto", padding: "1rem", border: "1px solid #ccc", borderRadius: 8 }}>
+      <h2>{mode === "login" ? "Login" : mode === "signup" ? "Sign Up" : "Forgot Password"}</h2>
 
       <input
         type="email"
@@ -56,23 +88,51 @@ export default function Auth() {
         style={{ display: "block", width: "100%", marginBottom: "1rem", padding: "0.5rem" }}
       />
 
-      <input
-        type="password"
-        placeholder="Password (optional)"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        style={{ display: "block", width: "100%", marginBottom: "1rem", padding: "0.5rem" }}
-      />
+      {(mode === "login" || mode === "signup") && (
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          style={{ display: "block", width: "100%", marginBottom: "1rem", padding: "0.5rem" }}
+        />
+      )}
 
-      <button
-        onClick={handleLogin}
-        disabled={loading}
-        style={{ padding: "0.5rem 1rem", width: "100%" }}
-      >
-        {loading ? "Checking..." : "Login"}
-      </button>
+      {error && <p style={{ color: "red", marginBottom: "1rem" }}>{error}</p>}
 
-      {error && <p style={{ color: "red", marginTop: "1rem" }}>{error}</p>}
+      {mode === "login" && (
+        <>
+          <button onClick={handleLogin} disabled={loading} style={{ width: "100%", padding: "0.5rem", marginBottom: "1rem" }}>
+            {loading ? "Logging in..." : "Login"}
+          </button>
+          <p style={{ textAlign: "center" }}>
+            <span style={{ cursor: "pointer", color: "blue" }} onClick={() => setMode("signup")}>Sign Up</span> |{" "}
+            <span style={{ cursor: "pointer", color: "blue" }} onClick={() => setMode("forgot")}>Forgot Password?</span>
+          </p>
+        </>
+      )}
+
+      {mode === "signup" && (
+        <>
+          <button onClick={handleSignUp} disabled={loading} style={{ width: "100%", padding: "0.5rem", marginBottom: "1rem" }}>
+            {loading ? "Signing up..." : "Sign Up"}
+          </button>
+          <p style={{ textAlign: "center" }}>
+            <span style={{ cursor: "pointer", color: "blue" }} onClick={() => setMode("login")}>Back to Login</span>
+          </p>
+        </>
+      )}
+
+      {mode === "forgot" && (
+        <>
+          <button onClick={handleForgotPassword} disabled={loading} style={{ width: "100%", padding: "0.5rem", marginBottom: "1rem" }}>
+            {loading ? "Sending..." : "Send Reset Email"}
+          </button>
+          <p style={{ textAlign: "center" }}>
+            <span style={{ cursor: "pointer", color: "blue" }} onClick={() => setMode("login")}>Back to Login</span>
+          </p>
+        </>
+      )}
     </div>
   );
 }
