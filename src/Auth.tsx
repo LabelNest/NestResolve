@@ -12,6 +12,7 @@ export default function Auth() {
     setLoading(true);
     setError(null);
 
+    // ---------------- SIGN UP ----------------
     if (mode === "signup") {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -24,23 +25,51 @@ export default function Auth() {
         return;
       }
 
-      // insert into users table
-      await supabase.from("users").insert({
-        id: data.user?.id,
+      // ✅ INSERT INTO APPROVAL TABLE (nr_demo)
+      const { error: insertError } = await supabase.from("nr_demo").insert({
+        id: data.user!.id,
         email,
         status: "pending",
       });
 
-      alert("Signup successful. Await admin approval.");
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      if (insertError) {
+        setError("Signup succeeded but approval entry failed");
+        setLoading(false);
+        return;
+      }
 
-      if (error) setError(error.message);
+      alert("Signup successful. Waiting for admin approval.");
+      setLoading(false);
+      return;
     }
 
+    // ---------------- LOGIN ----------------
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+      return;
+    }
+
+    // ✅ CHECK APPROVAL STATUS
+    const { data: tenant, error: tenantError } = await supabase
+      .from("nr_demo")
+      .select("status")
+      .eq("id", data.user.id)
+      .single();
+
+    if (tenantError || tenant.status !== "approved") {
+      await supabase.auth.signOut();
+      setError("Your account is not approved yet");
+      setLoading(false);
+      return;
+    }
+
+    // ✅ SUCCESS: App.tsx will now render protected routes
     setLoading(false);
   };
 
@@ -48,9 +77,19 @@ export default function Auth() {
     <div style={{ padding: 40 }}>
       <h2>{mode === "signup" ? "Sign Up" : "Login"}</h2>
 
-      <input placeholder="Email" onChange={e => setEmail(e.target.value)} />
+      <input
+        placeholder="Email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
       <br />
-      <input type="password" placeholder="Password" onChange={e => setPassword(e.target.value)} />
+
+      <input
+        type="password"
+        placeholder="Password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
       <br />
 
       <button onClick={handleAuth} disabled={loading}>
