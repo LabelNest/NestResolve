@@ -4,57 +4,122 @@ import { supabase } from "./supabaseClient";
 const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
+  const [isSignup, setIsSignup] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
 
-  const signUp = async () => {
+  // ---------------- SIGN UP ----------------
+  const handleSignup = async () => {
+    setLoading(true);
+    setMessage("");
+
+    // 1. Create Supabase auth user
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
     });
 
-    if (error) return alert(error.message);
+    if (error) {
+      setMessage(error.message);
+      setLoading(false);
+      return;
+    }
 
-    await supabase.from("nr_demo").insert({
-      id: data.user?.id,
-      email,
-      name,
+    // 2. Insert into tenants table
+    const { error: insertError } = await supabase.from("nr_demo").insert({
+      id: data.user?.id, // same UUID as auth.users
+      email: email,
       status: "pending",
       role: "user",
     });
 
-    alert("Signup successful. Wait for admin approval.");
+    if (insertError) {
+      setMessage("Signup created but DB insert failed");
+      setLoading(false);
+      return;
+    }
+
+    setMessage("Signup successful. Wait for admin approval.");
+    setLoading(false);
   };
 
-  const signIn = async () => {
+  // ---------------- LOGIN ----------------
+  const handleLogin = async () => {
+    setLoading(true);
+    setMessage("");
+
+    // 1. Login
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    if (error) return alert(error.message);
+    if (error) {
+      setMessage(error.message);
+      setLoading(false);
+      return;
+    }
 
-    const { data: tenant } = await supabase
+    // 2. Check approval status
+    const { data: tenant, error: tenantError } = await supabase
       .from("nr_demo")
       .select("status")
       .eq("id", data.user.id)
       .single();
 
-    if (tenant.status !== "approved") {
+    if (tenantError || !tenant) {
+      setMessage("Tenant record not found");
       await supabase.auth.signOut();
-      alert("Account not approved yet.");
+      setLoading(false);
+      return;
     }
+
+    if (tenant.status !== "approved") {
+      setMessage("Your account is pending admin approval");
+      await supabase.auth.signOut();
+      setLoading(false);
+      return;
+    }
+
+    setLoading(false);
   };
 
   return (
-    <div style={{ maxWidth: 300, margin: "100px auto" }}>
-      <h2>Login / Signup</h2>
+    <div style={{ maxWidth: 400, margin: "100px auto" }}>
+      <h2>{isSignup ? "Sign Up" : "Login"}</h2>
 
-      <input placeholder="Name" onChange={e => setName(e.target.value)} />
-      <input placeholder="Email" onChange={e => setEmail(e.target.value)} />
-      <input type="password" placeholder="Password" onChange={e => setPassword(e.target.value)} />
+      <input
+        type="email"
+        placeholder="Email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        style={{ width: "100%", marginBottom: 10 }}
+      />
 
-      <button onClick={signIn}>Login</button>
-      <button onClick={signUp}>Signup</button>
+      <input
+        type="password"
+        placeholder="Password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        style={{ width: "100%", marginBottom: 10 }}
+      />
+
+      <button
+        onClick={isSignup ? handleSignup : handleLogin}
+        disabled={loading}
+        style={{ width: "100%" }}
+      >
+        {loading ? "Please wait..." : isSignup ? "Sign Up" : "Login"}
+      </button>
+
+      <p style={{ marginTop: 10, color: "red" }}>{message}</p>
+
+      <p style={{ marginTop: 10 }}>
+        {isSignup ? "Already have an account?" : "New user?"}{" "}
+        <button onClick={() => setIsSignup(!isSignup)}>
+          {isSignup ? "Login" : "Sign Up"}
+        </button>
+      </p>
     </div>
   );
 };
