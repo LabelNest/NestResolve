@@ -1,159 +1,132 @@
-import { useState } from 'react';
-import { supabase } from './supabaseClient';
+import { useState } from "react";
+import { supabase } from "./supabaseClient";
 
 export default function Auth() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isSignup, setIsSignup] = useState(false);
-  const [message, setMessage] = useState('');
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    fullName: ''
-  });
+  const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<"login" | "signup">("signup");
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // ---------------- SIGN UP ----------------
+  const handleSignup = async () => {
     setLoading(true);
-    setMessage('');
+    setError(null);
 
-    try {
-      // Sign up user - they'll be created as disabled by default
-      const { data, error } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            full_name: formData.fullName,
-          },
-          // User will be created but needs approval
-          emailRedirectTo: `${window.location.origin}/login`
-        }
+    // 1. Supabase signup (email confirmation enabled)
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+      return;
+    }
+
+    // 2. Insert approval request
+    if (data.user) {
+      const { error: dbError } = await supabase.from("nr_demo").insert({
+        id: data.user.id,
+        email: email,
+        status: "pending",
       });
 
-      if (error) throw error;
-
-      if (data.user) {
-        setMessage('Registration submitted! Please wait for admin approval before logging in.');
-        setFormData({ email: '', password: '', fullName: '' });
+      if (dbError) {
+        console.error(dbError);
+        setError("Signup succeeded but approval entry failed");
+      } else {
+        alert("Registration submitted! Please check your email to confirm.");
       }
-    } catch (error: any) {
-      setMessage(error.message || 'An error occurred during signup');
-    } finally {
-      setLoading(false);
     }
+
+    setLoading(false);
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // ---------------- LOGIN ----------------
+  const handleLogin = async () => {
     setLoading(true);
-    setMessage('');
+    setError(null);
 
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password,
-      });
+    // 1. Check admin approval
+    const { data: approval, error: approvalError } = await supabase
+      .from("nr_demo")
+      .select("status")
+      .eq("email", email)
+      .single();
 
-      if (error) throw error;
-
-      // Check if user is approved
-      const { data: userData, error: userError } = await supabase
-        .from('nr_demo')
-        .select('status')
-        .eq('user_id', data.user.id)
-        .single();
-
-      if (userError || userData?.status !== 'approved') {
-        await supabase.auth.signOut();
-        setMessage('Your account is pending approval. Please contact an administrator.');
-        return;
-      }
-
-      // Successful login - redirect will be handled by your app
-      window.location.href = '/dashboard';
-    } catch (error: any) {
-      setMessage(error.message || 'Invalid login credentials');
-    } finally {
+    if (approvalError || !approval) {
+      setError("Account not approved yet.");
       setLoading(false);
+      return;
     }
+
+    if (approval.status !== "approved") {
+      setError("Account pending admin approval.");
+      setLoading(false);
+      return;
+    }
+
+    // 2. Login
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      setError(error.message);
+    }
+
+    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            {isSignup ? 'Create your account' : 'Sign in to your account'}
-          </h2>
-        </div>
-        
-        <form className="mt-8 space-y-6" onSubmit={isSignup ? handleSignup : handleLogin}>
-          <div className="rounded-md shadow-sm -space-y-px">
-            {isSignup && (
-              <div>
-                <input
-                  type="text"
-                  required
-                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                  placeholder="Full Name"
-                  value={formData.fullName}
-                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                />
-              </div>
-            )}
-            <div>
-              <input
-                type="email"
-                required
-                className={`appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 ${!isSignup ? 'rounded-t-md' : ''} focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm`}
-                placeholder="Email address"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              />
-            </div>
-            <div>
-              <input
-                type="password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              />
-            </div>
-          </div>
+    <div style={{ padding: 40, maxWidth: 400 }}>
+      <h2>{mode === "signup" ? "Sign Up" : "Login"}</h2>
 
-          {message && (
-            <div className={`text-sm ${message.includes('error') || message.includes('Invalid') || message.includes('pending') ? 'text-red-600' : 'text-green-600'}`}>
-              {message}
-            </div>
-          )}
+      <input
+        placeholder="Email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        style={{ width: "100%", marginBottom: 10 }}
+      />
 
-          <div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-            >
-              {loading ? 'Processing...' : (isSignup ? 'Sign up' : 'Sign in')}
-            </button>
-          </div>
+      <input
+        type="password"
+        placeholder="Password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        style={{ width: "100%", marginBottom: 10 }}
+      />
 
-          <div className="text-center">
-            <button
-              type="button"
-              onClick={() => {
-                setIsSignup(!isSignup);
-                setMessage('');
-                setFormData({ email: '', password: '', fullName: '' });
-              }}
-              className="text-sm text-indigo-600 hover:text-indigo-500"
-            >
-              {isSignup ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-            </button>
-          </div>
-        </form>
-      </div>
+      <button
+        onClick={mode === "signup" ? handleSignup : handleLogin}
+        disabled={loading}
+        style={{ width: "100%" }}
+      >
+        {loading
+          ? "Please wait..."
+          : mode === "signup"
+          ? "Sign Up"
+          : "Login"}
+      </button>
+
+      <p
+        style={{ cursor: "pointer", color: "blue", marginTop: 15 }}
+        onClick={() =>
+          setMode(mode === "signup" ? "login" : "signup")
+        }
+      >
+        {mode === "signup"
+          ? "Already registered? Login"
+          : "New user? Sign up"}
+      </p>
+
+      {error && <p style={{ color: "red" }}>{error}</p>}
     </div>
   );
 }
