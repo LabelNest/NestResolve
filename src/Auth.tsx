@@ -1,42 +1,41 @@
 import { useState } from "react";
-import { supabase } from "./supabaseClient"; // make sure this is your Supabase client
+import { supabase } from "./supabaseClient"; // Make sure this points to your Supabase client
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [password, setPassword] = useState(""); // optional if you’re only checking approval
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Async login function
   const handleLogin = async () => {
     setLoading(true);
     setError("");
 
     try {
-      // 1️⃣ Supabase auth sign in
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (authError) throw authError;
-
-      // 2️⃣ Check approval status from your table
+      // 1️⃣ Check approval status
       const { data: approval, error: approvalError } = await supabase
         .from("nr_demo")
         .select("status")
         .eq("email", email)
         .maybeSingle();
 
-      if (approvalError) throw approvalError;
+      console.log("Approval:", approval);
+      console.log("Approval error:", approvalError);
 
-      if (!approval || approval.status.toLowerCase() !== "approved") {
+      if (approvalError || !approval) {
         setError("Account not approved yet.");
         return;
       }
 
-      // ✅ Success: user is logged in and approved
-      console.log("Login successful!", authData);
+      // Optional: check if status is exactly "approved"
+      if (approval.status.toLowerCase() !== "approved") {
+        setError("Account not approved yet.");
+        return;
+      }
+
+      // 2️⃣ If approved, continue login flow
+      // Example: you can redirect or show success
+      console.log("User approved. Continue login...");
       alert("Login successful!");
 
     } catch (err) {
@@ -48,26 +47,20 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={{ padding: "2rem" }}>
+    <div style={{ padding: "2rem", maxWidth: "400px", margin: "0 auto" }}>
       <h2>Login</h2>
+
       <input
         type="email"
         placeholder="Email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        style={{ display: "block", marginBottom: "1rem" }}
+        style={{ display: "block", width: "100%", marginBottom: "1rem", padding: "0.5rem" }}
       />
+
       <input
         type="password"
-        placeholder="Password"
+        placeholder="Password (optional)"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
-        style={{ display: "block", marginBottom: "1rem" }}
-      />
-      <button onClick={handleLogin} disabled={loading}>
-        {loading ? "Logging in..." : "Login"}
-      </button>
-      {error && <p style={{ color: "red" }}>{error}</p>}
-    </div>
-  );
-}
+        style={{ display: "block", width: "100%", marginBot
