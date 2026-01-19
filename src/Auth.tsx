@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { supabase } from "./supabaseClient"; // Make sure this points to your Supabase client
+import { supabase } from "./supabaseClient"; // make sure this points to your Supabase client
 
-export default function LoginPage() {
+export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState(""); // optional if you’re only checking approval
   const [loading, setLoading] = useState(false);
@@ -12,7 +12,7 @@ export default function LoginPage() {
     setError("");
 
     try {
-      // 1️⃣ Check approval status
+      // 1️⃣ Check approval status in nr_demo table
       const { data: approval, error: approvalError } = await supabase
         .from("nr_demo")
         .select("status")
@@ -27,20 +27,18 @@ export default function LoginPage() {
         return;
       }
 
-      // Optional: check if status is exactly "approved"
       if (approval.status.toLowerCase() !== "approved") {
         setError("Account not approved yet.");
         return;
       }
 
-      // 2️⃣ If approved, continue login flow
-      // Example: you can redirect or show success
-      console.log("User approved. Continue login...");
+      // 2️⃣ Optional: continue login flow here
+      console.log("User approved. Login successful!");
       alert("Login successful!");
 
     } catch (err) {
       console.error("Login error:", err);
-      setError(err.message || "Something went wrong.");
+      setError((err as Error).message || "Something went wrong.");
     } finally {
       setLoading(false);
     }
@@ -63,4 +61,18 @@ export default function LoginPage() {
         placeholder="Password (optional)"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
-        style={{ display: "block", width: "100%", marginBot
+        style={{ display: "block", width: "100%", marginBottom: "1rem", padding: "0.5rem" }}
+      />
+
+      <button
+        onClick={handleLogin}
+        disabled={loading}
+        style={{ padding: "0.5rem 1rem", width: "100%" }}
+      >
+        {loading ? "Checking..." : "Login"}
+      </button>
+
+      {error && <p style={{ color: "red", marginTop: "1rem" }}>{error}</p>}
+    </div>
+  );
+}
