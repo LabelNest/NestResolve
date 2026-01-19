@@ -12,7 +12,7 @@ export default function Auth() {
     setLoading(true);
     setError(null);
 
-    // ---------------- SIGN UP ----------------
+    // -------- SIGN UP --------
     if (mode === "signup") {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -25,51 +25,29 @@ export default function Auth() {
         return;
       }
 
-      // ✅ INSERT INTO APPROVAL TABLE (nr_demo)
-      const { error: insertError } = await supabase.from("nr_demo").insert({
-        id: data.user!.id,
+      // Insert into approval table (best-effort)
+      await supabase.from("nr_demo").insert({
+        id: data.user?.id,
         email,
         status: "pending",
       });
 
-      if (insertError) {
-        setError("Signup succeeded but approval entry failed");
-        setLoading(false);
-        return;
-      }
-
-      alert("Signup successful. Waiting for admin approval.");
+      alert("Signup successful. You can login after admin approval.");
+      setMode("login");
       setLoading(false);
       return;
     }
 
-    // ---------------- LOGIN ----------------
-    const { data, error } = await supabase.auth.signInWithPassword({
+    // -------- LOGIN --------
+    const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (error) {
       setError(error.message);
-      setLoading(false);
-      return;
     }
 
-    // ✅ CHECK APPROVAL STATUS
-    const { data: tenant, error: tenantError } = await supabase
-      .from("nr_demo")
-      .select("status")
-      .eq("id", data.user.id)
-      .single();
-
-    if (tenantError || tenant.status !== "approved") {
-      await supabase.auth.signOut();
-      setError("Your account is not approved yet");
-      setLoading(false);
-      return;
-    }
-
-    // ✅ SUCCESS: App.tsx will now render protected routes
     setLoading(false);
   };
 
