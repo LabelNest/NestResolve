@@ -1,5 +1,7 @@
 //import './testSupabase';
 
+console.log("Approval object:", approval);
+console.log("Approval error:", approvalError);
 // importing auth part
 import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
