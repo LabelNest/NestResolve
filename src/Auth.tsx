@@ -57,7 +57,7 @@ export default function Auth() {
       .from("nr_demo")
       .select("status")
       .eq("email", email)
-      .maybeSingle();
+      .single();
 
     if (approvalError || !approval) {
       setError("Account not approved yet.");
