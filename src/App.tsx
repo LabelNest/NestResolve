@@ -1,93 +1,67 @@
-//import './testSupabase';
+// src/App.tsx
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { Toaster } from '@/components/ui/toaster';
+import { Toaster as Sonner } from '@/components/ui/sonner';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { IssueProvider } from '@/context/IssueContext';
 
-//console.log("Approval object:", approval);
-//console.log("Approval error:", approvalError);
-// importing auth part
-import { useEffect, useState } from "react";
-import { supabase } from "./supabaseClient";
-import Auth from "./Auth";
+import Index from './pages/Index';
+import CreateIssue from './pages/CreateIssue';
+import IssueDetail from './pages/IssueDetail';
+import MyIssues from './pages/MyIssues';
+import Admin from './pages/Admin';
+import NotFound from './pages/NotFound';
+import Auth from './pages/Auth';
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { IssueProvider } from "@/context/IssueContext";
-
-import Index from "./pages/Index";
-import CreateIssue from "./pages/CreateIssue";
-import IssueDetail from "./pages/IssueDetail";
-import MyIssues from "./pages/MyIssues";
-import Admin from "./pages/Admin";
-import NotFound from "./pages/NotFound";
+import { AuthProvider } from '@/context/AuthProvider';
+import { useApproval } from '@/hooks/useApproval';
 
 const queryClient = new QueryClient();
 
-const App = () => {
-  // ---------- Supabase Auth ----------
-  const [session, setSession] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [approved, setApproved] = useState<boolean | null>(null);
+function App() {
+  // --------------------------------------------------------------
+  // 1️⃣  Auth + Approval state (via our custom hooks)
+  // --------------------------------------------------------------
+  const { user, loading: authLoading } = useAuth(); // <-- from AuthProvider
+  const { approved, loading: approvalLoading } = useApproval();
 
-  useEffect(() => {
-    const checkAuthAndApproval = async () => {
-      const { data } = await supabase.auth.getSession();
-      const session = data.session;
+  // Global “loading” is true while we don’t know either auth or approval
+  const loading = authLoading || approvalLoading;
 
-      setSession(session);
-
-      if (!session) {
-        setLoading(false);
-        return;
-      }
-
-      // 🔐 Approval check from nr_demo table
-      const { data: tenant, error } = await supabase
-        .from("nr_demo")
-        .select("status")
-        .eq("email", session.user.email)
-        .single();
-
-      if (error || !tenant) {
-        console.error("Approval check failed", error);
-        setApproved(false);
-      } else {
-        setApproved(tenant.status === "approved");
-      }
-
-      setLoading(false);
-    };
-
-    checkAuthAndApproval();
-
-    // Listen to login / logout
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        setApproved(null);
-        setLoading(true);
-        checkAuthAndApproval();
-      }
-    );
-
-    return () => listener.subscription.unsubscribe();
-  }, []);
-
-  // ---------- Guards ----------
-  if (loading) return <div>Loading...</div>;
-
-  if (!session) return <Auth />;
-
-  if (approved === false) {
+  // --------------------------------------------------------------
+  // 2️⃣  UI for the three possible states
+  // --------------------------------------------------------------
+  if (loading) {
     return (
-      <div style={{ padding: 40 }}>
-        <h2>⏳ Account Pending Approval</h2>
-        <p>Your account is waiting for admin approval.</p>
+      <div className="flex h-screen items-center justify-center">
+        Loading…
       </div>
     );
   }
 
-  // ---------- Existing App JSX ----------
+  // Not logged in → show the sign‑in / sign‑up page
+  if (!user) {
+    return <Auth />;
+  }
+
+  // Logged‑in but not approved yet → a friendly waiting screen
+  if (approved === false) {
+    return (
+      <div style={{ padding: 40 }}>
+        <h2>⏳ Account Pending Approval</h2>
+        <p>
+          Your account is waiting for an administrator to approve it.
+          <br />
+          You’ll be able to use the app as soon as it’s approved.
+        </p>
+      </div>
+    );
+  }
+
+  // --------------------------------------------------------------
+  // 3️⃣  Fully‑authorized app – everything else you already had
+  // --------------------------------------------------------------
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -108,6 +82,15 @@ const App = () => {
       </TooltipProvider>
     </QueryClientProvider>
   );
-};
+}
 
-export default App;
+// --------------------------------------------------------------
+// 4️⃣  Wrap the whole app in the AuthProvider (only once, at root)
+// --------------------------------------------------------------
+const WrappedApp = () => (
+  <AuthProvider>
+    <App />
+  </AuthProvider>
+);
+
+export default WrappedApp;
