@@ -4,69 +4,27 @@ import { supabase } from "./supabaseClient";
 export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState<"signup" | "login">("signup");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
 
-  const handleSubmit = async () => {
+  const handleSignup = async () => {
     setLoading(true);
     setError(null);
+    setMessage(null);
 
-    // ---------- SIGN UP ----------
-    if (mode === "signup") {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-      });
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
 
-      if (error || !data.user) {
-        setError(error?.message || "Signup failed");
-        setLoading(false);
-        return;
-      }
-
-      // Insert approval record
-      const { error: insertError } = await supabase.from("nr_demo").insert({
-        id: data.user.id,
-        email,
-        status: "pending",
-      });
-
-      if (insertError) {
-        setError("Signup created, but approval record failed");
-      } else {
-        alert("Registration submitted! Wait for admin approval.");
-      }
-
-      setLoading(false);
-      return;
-    }
-
-    // ---------- LOGIN ----------
-    const { data, error: loginError } =
-      await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-    if (loginError || !data.session) {
-      setError("Invalid login credentials");
-      setLoading(false);
-      return;
-    }
-
-    // Check approval
-    const { data: approval } = await supabase
-      .from("nr_demo")
-      .select("status")
-      .eq("id", data.session.user.id)
-      .maybeSingle();
-
-    if (!approval || approval.status !== "approved") {
-      await supabase.auth.signOut();
-      setError("Account not approved yet");
-      setLoading(false);
-      return;
+    if (error) {
+      setError(error.message);
+    } else {
+      setMessage(
+        "Signup successful. Please check your email to confirm your account."
+      );
+      console.log("Signup data:", data);
     }
 
     setLoading(false);
@@ -76,10 +34,10 @@ export default function Auth() {
     <div
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(135deg, #2563eb, #1e40af)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        background: "linear-gradient(135deg, #1e3c72, #2a5298)",
       }}
     >
       <div
@@ -88,73 +46,57 @@ export default function Auth() {
           padding: 32,
           borderRadius: 12,
           width: 360,
-          boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+          boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
         }}
       >
         <h2 style={{ textAlign: "center", marginBottom: 20 }}>
-          {mode === "signup" ? "Create Account" : "Login"}
+          Sign Up (Test)
         </h2>
 
         <input
+          type="email"
           placeholder="Email"
           value={email}
-          onChange={e => setEmail(e.target.value)}
-          style={inputStyle}
+          onChange={(e) => setEmail(e.target.value)}
+          style={{ width: "100%", padding: 10, marginBottom: 12 }}
         />
 
         <input
           type="password"
           placeholder="Password"
           value={password}
-          onChange={e => setPassword(e.target.value)}
-          style={inputStyle}
+          onChange={(e) => setPassword(e.target.value)}
+          style={{ width: "100%", padding: 10, marginBottom: 16 }}
         />
 
         <button
-          onClick={handleSubmit}
+          onClick={handleSignup}
           disabled={loading}
-          style={buttonStyle}
+          style={{
+            width: "100%",
+            padding: 12,
+            background: "#2563eb",
+            color: "#fff",
+            border: "none",
+            borderRadius: 6,
+            cursor: "pointer",
+          }}
         >
-          {loading
-            ? "Please wait..."
-            : mode === "signup"
-            ? "Sign Up"
-            : "Login"}
+          {loading ? "Signing up..." : "Sign Up"}
         </button>
 
-        <p
-          style={{ textAlign: "center", marginTop: 12, cursor: "pointer" }}
-          onClick={() =>
-            setMode(mode === "signup" ? "login" : "signup")
-          }
-        >
-          {mode === "signup"
-            ? "Already approved? Login"
-            : "New user? Sign up"}
-        </p>
-
         {error && (
-          <p style={{ color: "red", textAlign: "center" }}>{error}</p>
+          <p style={{ color: "red", marginTop: 12, textAlign: "center" }}>
+            {error}
+          </p>
+        )}
+
+        {message && (
+          <p style={{ color: "green", marginTop: 12, textAlign: "center" }}>
+            {message}
+          </p>
         )}
       </div>
     </div>
   );
 }
-
-const inputStyle = {
-  width: "100%",
-  padding: 10,
-  marginBottom: 12,
-  borderRadius: 6,
-  border: "1px solid #ccc",
-};
-
-const buttonStyle = {
-  width: "100%",
-  padding: 10,
-  borderRadius: 6,
-  border: "none",
-  background: "#2563eb",
-  color: "#fff",
-  fontWeight: "bold",
-};
